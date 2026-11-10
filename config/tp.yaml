@@ -1,0 +1,4 @@
+/**:
+  ros__parameters:
+    gamecontroller2master_topic_name: "gamecontroldata"
+    master2ik_topic_name: "master2ik"
