@@ -9,6 +9,27 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+# add dependencies
+find_package(humanoid_interfaces REQUIRED)
+find_package(gamecontroller REQUIRED)
+
+# --------------------------
+include_directories(include)
+
+add_executable(task_planner src/task_planner.cpp)
+ament_target_dependencies(task_planner rclcpp std_msgs humanoid_interfaces gamecontroller)
+
+install(TARGETS
+  task_planner
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  launch
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
+# --------------------------
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
