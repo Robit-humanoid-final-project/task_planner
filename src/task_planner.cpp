@@ -22,3 +22,12 @@ void TaskPlanner::control_data_callback(const controlData::SharedPtr msg)
     state = msg->state;
     // RCLCPP_INFO(this->get_logger(), "gamecontroller state: %d", state);
 }
+
+int main(int argc, char *argv[])
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<TaskPlanner>();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
+}
