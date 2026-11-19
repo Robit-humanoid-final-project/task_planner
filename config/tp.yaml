@@ -2,3 +2,8 @@
   ros__parameters:
     gamecontroller2master_topic_name: "gamecontroldata"
     master2ik_topic_name: "master2ik"
+    # temp
+    navCommand_topic_name: "nav_command"
+    visionCommand_topic_name: "vision_command"
+    visionFeedback_topic_name: "vision_feedback"
+    worldModel_topic_name: "world_model"
