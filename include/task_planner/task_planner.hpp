@@ -5,6 +5,7 @@
 #include "gamecontroller/msg/gamecontroldata.hpp"
 #include "humanoid_interfaces/msg/master2_ik_msg.hpp"
 #include "humanoid_interfaces/msg/nav_command.hpp"
+#include "humanoid_interfaces/msg/nav_feedback.hpp"
 #include "humanoid_interfaces/msg/vs_command.hpp"
 #include "humanoid_interfaces/msg/vs_feedback.hpp"
 #include "humanoid_interfaces/msg/world_model.hpp"
@@ -12,6 +13,7 @@
 using controlData = gamecontroller::msg::Gamecontroldata;
 using M2Ik = humanoid_interfaces::msg::Master2IkMsg;
 using navComm = humanoid_interfaces::msg::NavCommand;
+using navFeedback = humanoid_interfaces::msg::NavFeedback;
 using VSComm = humanoid_interfaces::msg::VSCommand;
 using VSFeedback = humanoid_interfaces::msg::VSFeedback;
 using worldModel = humanoid_interfaces::msg::WorldModel;
@@ -37,6 +39,10 @@ class TaskPlanner : public rclcpp::Node
 
     rclcpp::Publisher<navComm>::SharedPtr NavCommand_pub;
     std::string navCommand_topic_name;
+
+    rclcpp::Subscription<navFeedback>::SharedPtr NavFeedback_sub;
+    std::string navFeedback_topic_name;
+    void navigation_feedback_callback(const navFeedback::SharedPtr msg);
 
     rclcpp::Publisher<VSComm>::SharedPtr VisionCommand_pub;
     std::string visionCommand_topic_name;
