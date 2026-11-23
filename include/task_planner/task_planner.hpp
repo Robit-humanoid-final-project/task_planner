@@ -2,21 +2,20 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "task_planner/fsm.hpp"
+
 #include "gamecontroller/msg/gamecontroldata.hpp"
 #include "humanoid_interfaces/msg/master2_ik_msg.hpp"
 #include "humanoid_interfaces/msg/nav_command.hpp"
 #include "humanoid_interfaces/msg/nav_feedback.hpp"
-#include "humanoid_interfaces/msg/vs_command.hpp"
-#include "humanoid_interfaces/msg/vs_feedback.hpp"
+// #include "humanoid_interfaces/msg/vs_command.hpp"
+// #include "humanoid_interfaces/msg/vs_feedback.hpp"
 #include "humanoid_interfaces/msg/world_model.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/string.hpp"
 
-using controlData = gamecontroller::msg::Gamecontroldata;
-using M2Ik = humanoid_interfaces::msg::Master2IkMsg;
-using navComm = humanoid_interfaces::msg::NavCommand;
-using navFeedback = humanoid_interfaces::msg::NavFeedback;
-using VSComm = humanoid_interfaces::msg::VSCommand;
-using VSFeedback = humanoid_interfaces::msg::VSFeedback;
-using worldModel = humanoid_interfaces::msg::WorldModel;
+namespace task_planner
+{
 
 class TaskPlanner : public rclcpp::Node
 {
@@ -26,9 +25,15 @@ class TaskPlanner : public rclcpp::Node
     ~TaskPlanner();
 
   private:
+    using controlData = gamecontroller::msg::Gamecontroldata;
+    using M2Ik = humanoid_interfaces::msg::Master2IkMsg;
+    using navComm = humanoid_interfaces::msg::NavCommand;
+    using navFeedback = humanoid_interfaces::msg::NavFeedback;
+    // using VSComm = humanoid_interfaces::msg::VSCommand;
+    // using VSFeedback = humanoid_interfaces::msg::VSFeedback;
+    using worldModel = humanoid_interfaces::msg::WorldModel;
     // TODO: 추가할 거
-    // ta -> gamecontroller(없어도 될지도)
-    // ta -> walk(kick, pass 등), 보행은 Master2Ik 또는 vision, navi -> walk
+    // ta -> walk(kick, pass 등)
     rclcpp::Subscription<controlData>::SharedPtr ControlData_sub;
     std::string gamecontroller2master_topic_name;
     void control_data_callback(const controlData::SharedPtr msg);
@@ -36,22 +41,45 @@ class TaskPlanner : public rclcpp::Node
 
     rclcpp::Publisher<M2Ik>::SharedPtr Master2Ik_pub;
     std::string master2ik_topic_name;
+    void publish_walk(double vx, double vy, double vyaw);
 
     rclcpp::Publisher<navComm>::SharedPtr NavCommand_pub;
     std::string navCommand_topic_name;
+    void publish_nav_command(const NavCmdOut &nav);
 
     rclcpp::Subscription<navFeedback>::SharedPtr NavFeedback_sub;
     std::string navFeedback_topic_name;
     void navigation_feedback_callback(const navFeedback::SharedPtr msg);
 
-    rclcpp::Publisher<VSComm>::SharedPtr VisionCommand_pub;
-    std::string visionCommand_topic_name;
+    // rclcpp::Publisher<VSComm>::SharedPtr VisionCommand_pub;
+    // std::string visionCommand_topic_name;
 
-    rclcpp::Subscription<VSFeedback>::SharedPtr VisionFeedback_sub;
-    std::string visionFeedback_topic_name;
-    void vision_feedback_callback(const VSFeedback::SharedPtr msg);
+    // rclcpp::Subscription<VSFeedback>::SharedPtr VisionFeedback_sub;
+    // std::string visionFeedback_topic_name;
+    // void vision_feedback_callback(const VSFeedback::SharedPtr msg);
 
     rclcpp::Subscription<worldModel>::SharedPtr WorldModel_sub;
     std::string worldModel_topic_name;
     void world_model_callback(const worldModel::SharedPtr msg);
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr IK_Kick_pub;
+    std::string ik_kick_topic_name;
+    void publish_kick(KickFoot foot);
+
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr IK_Kick_end_sub;
+    std::string ik_kick_end_topic_name;
+    void ik_kick_end_callback(std_msgs::msg::Bool msg);
+
+    // ---
+    rclcpp::TimerBase::SharedPtr control_timer_;
+    bool is_vision_fresh() const;
+    void control_loop();
+
+    rclcpp::Time last_vision_time_{0, 0, RCL_ROS_TIME};
+    const double vision_timeout_{0.12};
+
+    FsmInput input_;
+    TaskFsm fsm_;
 };
+
+} // namespace task_planner

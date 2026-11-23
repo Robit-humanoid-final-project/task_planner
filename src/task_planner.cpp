@@ -1,5 +1,8 @@
 #include "task_planner/task_planner.hpp"
 
+namespace task_planner
+{
+
 TaskPlanner::TaskPlanner() : Node("task_planner")
 {
     // yaml 받아오기
@@ -8,9 +11,11 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     master2ik_topic_name = declare_parameter<std::string>("master2ik_topic_name", "master2ik");
     navCommand_topic_name = declare_parameter<std::string>("navCommand_topic_name", "nav_command");
     navFeedback_topic_name = declare_parameter<std::string>("navFeedback_topic_name", "nav_feedback");
-    visionCommand_topic_name = declare_parameter<std::string>("visionCommand_topic_name", "vision_command");
-    visionFeedback_topic_name = declare_parameter<std::string>("visionFeedback_topic_name", "vision_feedback");
+    // visionCommand_topic_name = declare_parameter<std::string>("visionCommand_topic_name", "vision_command");
+    // visionFeedback_topic_name = declare_parameter<std::string>("visionFeedback_topic_name", "vision_feedback");
     worldModel_topic_name = declare_parameter<std::string>("worldModel_topic_name", "world_model");
+    ik_kick_topic_name = declare_parameter<std::string>("ik_kick_topic_name", "kick_flag");
+    ik_kick_end_topic_name = declare_parameter<std::string>("ik_kick_end_topic_name", "kick_flag_end");
 
     // topic pub, sub, QoS 추후 변경
     ControlData_sub = this->create_subscription<controlData>(
@@ -20,43 +25,133 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     NavCommand_pub = this->create_publisher<navComm>(navCommand_topic_name, 10);
     NavFeedback_sub = this->create_subscription<navFeedback>(
         navFeedback_topic_name, 10, std::bind(&TaskPlanner::navigation_feedback_callback, this, std::placeholders::_1));
-    VisionCommand_pub = this->create_publisher<VSComm>(visionCommand_topic_name, 10);
-    VisionFeedback_sub = this->create_subscription<VSFeedback>(
-        visionFeedback_topic_name, 10, std::bind(&TaskPlanner::vision_feedback_callback, this, std::placeholders::_1));
+    // VisionCommand_pub = this->create_publisher<VSComm>(visionCommand_topic_name, 10);
+    // VisionFeedback_sub = this->create_subscription<VSFeedback>(
+    //     visionFeedback_topic_name, 10, std::bind(&TaskPlanner::vision_feedback_callback, this,
+    //     std::placeholders::_1));
     WorldModel_sub = this->create_subscription<worldModel>(
         worldModel_topic_name, 10, std::bind(&TaskPlanner::world_model_callback, this, std::placeholders::_1));
+    IK_Kick_pub = this->create_publisher<std_msgs::msg::String>(ik_kick_topic_name, 10);
+    IK_Kick_end_sub = this->create_subscription<std_msgs::msg::Bool>(
+        ik_kick_end_topic_name, 10, std::bind(ik_kick_end_callback, this, std::placeholders::_1));
+
+    control_timer_ =
+        this->create_wall_timer(std::chrono::milliseconds(1000 / 20), std::bind(&TaskPlanner::control_loop, this));
 }
 
 TaskPlanner::~TaskPlanner()
 {
 }
 
-// game controller data subscribe
+// subscribe callback & publish
 void TaskPlanner::control_data_callback(const controlData::SharedPtr msg)
 {
     state = msg->state;
     // RCLCPP_INFO(this->get_logger(), "gamecontroller state: %d", state);
 }
-// navigation feedback subscribe
 void TaskPlanner::navigation_feedback_callback(const navFeedback::SharedPtr msg)
 {
     double temp = msg->eta_seconds;
 }
-// vision feedback subscribe
-void TaskPlanner::vision_feedback_callback(const VSFeedback::SharedPtr msg)
-{
-    int temp = msg->is_aligned;
-}
-// world model subscribe
+// void TaskPlanner::vision_feedback_callback(const VSFeedback::SharedPtr msg)
+// {
+//     int temp = msg->is_aligned;
+// }
 void TaskPlanner::world_model_callback(const worldModel::SharedPtr msg)
 {
     int temp = msg->ball_detected;
 }
+void ik_kick_end_callback(std_msgs::msg::Bool msg)
+{
+    std_msgs::msg::Bool temp = msg;
+}
+void TaskPlanner::publish_nav_command(const NavCmdOut &nav)
+{
+    navComm msg;
+    msg.nav_enable = nav.enable;
+    msg.x = nav.x;
+    msg.y = nav.y;
+    msg.theta = nav.theta;
+    msg.pos_tolerance = nav.pos_tol;
+    msg.theta_tolerance = nav.theta_tol;
+    msg.forbid_right_half = nav.forbid_right_half;
+    msg.avoid_ball = nav.avoid_ball;
+    NavCommand_pub->publish(msg);
+}
+void TaskPlanner::publish_walk(double vx, double vy, double vyaw)
+{
+    M2Ik msg;
+    // TODO: Master2IkMsg 보행 속도 필드 매핑
+    (void)vx;
+    (void)vy;
+    (void)vyaw;
+    Master2Ik_pub->publish(msg);
+}
+void TaskPlanner::publish_kick(KickFoot foot)
+{
+    std_msgs::msg::String msg;
+    msg.data = (foot == KickFoot::LEFT) ? "left" : "right";
+    IK_Kick_pub->publish(msg);
+}
+
+bool TaskPlanner::is_vision_fresh() const
+{
+    if (last_vision_time_.nanoseconds() == 0) // 호출되지 않았을 경우
+    {
+        return false;
+    }
+    // 너무 delay된 데이터는 쓰지 않음
+    return (this->now() - last_vision_time_).seconds() <= vision_timeout_;
+}
+
+void TaskPlanner::control_loop()
+{
+    input_.is_vision_fresh = is_vision_fresh();
+
+    const FsmOutput out = fsm_.update(input_);
+
+    if (out.warn_ready_ignored)
+    {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "페널티 후에는 SET 또는 PLAYING으로 전환");
+    }
+    if (out.entered_first_initial)
+    {
+        RCLCPP_INFO(this->get_logger(), "경기 시작 전 초기 대기");
+    }
+    if (out.entered_penalty_initial)
+    {
+        RCLCPP_WARN(this->get_logger(), "페널티 복귀 (pass_count 리셋)");
+    }
+
+    if (out.reset_motion_done) // kick end
+    {
+        input_.motion_done = false;
+    }
+    if (out.send_nav && out.send_walk)
+    {
+        RCLCPP_ERROR(this->get_logger(), "nav.active와 send_walk가 동시에 활성화됨");
+        return;
+    }
+    if (out.send_nav) // send_nav가 false일 경우 nav에서 보행 topic 발행 X
+    {
+        publish_nav_command(out.nav);
+    }
+    if (out.send_walk) // 직접 전달 시
+    {
+        publish_walk(out.vx, out.vy, out.vyaw);
+    }
+    if (out.send_kick) // kick foot
+    {
+        publish_kick(out.kick_foot);
+    }
+}
+
+} // namespace task_planner
 
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<TaskPlanner>();
+    auto node = std::make_shared<task_planner::TaskPlanner>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

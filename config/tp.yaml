@@ -8,3 +8,5 @@
     visionCommand_topic_name: "vision_command"
     visionFeedback_topic_name: "vision_feedback"
     worldModel_topic_name: "world_model"
+    ik_kick_topic_name: "kick_flag"
+    ik_kick_end_topic_name: "kick_flag_end"
