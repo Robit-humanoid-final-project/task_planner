@@ -11,7 +11,7 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     master2ik_topic_name = declare_parameter<std::string>("master2ik_topic_name", "master2ik");
     navCommand_topic_name = declare_parameter<std::string>("navCommand_topic_name", "nav_command");
     navFeedback_topic_name = declare_parameter<std::string>("navFeedback_topic_name", "nav_feedback");
-    // visionCommand_topic_name = declare_parameter<std::string>("visionCommand_topic_name", "vision_command");
+    visionCommand_topic_name = declare_parameter<std::string>("visionCommand_topic_name", "vision_command");
     // visionFeedback_topic_name = declare_parameter<std::string>("visionFeedback_topic_name", "vision_feedback");
     worldModel_topic_name = declare_parameter<std::string>("worldModel_topic_name", "world_model");
     ik_kick_topic_name = declare_parameter<std::string>("ik_kick_topic_name", "kick_flag");
@@ -25,7 +25,7 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     NavCommand_pub = this->create_publisher<navComm>(navCommand_topic_name, 10);
     NavFeedback_sub = this->create_subscription<navFeedback>(
         navFeedback_topic_name, 10, std::bind(&TaskPlanner::navigation_feedback_callback, this, std::placeholders::_1));
-    // VisionCommand_pub = this->create_publisher<VSComm>(visionCommand_topic_name, 10);
+    VisionCommand_pub = this->create_publisher<VSComm>(visionCommand_topic_name, 10);
     // VisionFeedback_sub = this->create_subscription<VSFeedback>(
     //     visionFeedback_topic_name, 10, std::bind(&TaskPlanner::vision_feedback_callback, this,
     //     std::placeholders::_1));
@@ -33,7 +33,7 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
         worldModel_topic_name, 10, std::bind(&TaskPlanner::world_model_callback, this, std::placeholders::_1));
     IK_Kick_pub = this->create_publisher<std_msgs::msg::String>(ik_kick_topic_name, 10);
     IK_Kick_end_sub = this->create_subscription<std_msgs::msg::Bool>(
-        ik_kick_end_topic_name, 10, std::bind(ik_kick_end_callback, this, std::placeholders::_1));
+        ik_kick_end_topic_name, 10, std::bind(&TaskPlanner::ik_kick_end_callback, this, std::placeholders::_1));
 
     control_timer_ =
         this->create_wall_timer(std::chrono::milliseconds(1000 / 20), std::bind(&TaskPlanner::control_loop, this));
@@ -61,7 +61,7 @@ void TaskPlanner::world_model_callback(const worldModel::SharedPtr msg)
 {
     int temp = msg->ball_detected;
 }
-void ik_kick_end_callback(std_msgs::msg::Bool msg)
+void TaskPlanner::ik_kick_end_callback(const std_msgs::msg::Bool msg)
 {
     std_msgs::msg::Bool temp = msg;
 }
@@ -87,11 +87,14 @@ void TaskPlanner::publish_walk(double vx, double vy, double vyaw)
     (void)vyaw;
     Master2Ik_pub->publish(msg);
 }
-void TaskPlanner::publish_kick(KickFoot foot)
+void TaskPlanner::publish_kick(const KickFoot &foot)
 {
     std_msgs::msg::String msg;
     msg.data = (foot == KickFoot::LEFT) ? "left" : "right";
     IK_Kick_pub->publish(msg);
+}
+void TaskPlanner::publish_vision_command(const VSComm &comm)
+{
 }
 
 bool TaskPlanner::is_vision_fresh() const
