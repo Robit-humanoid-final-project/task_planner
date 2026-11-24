@@ -222,11 +222,12 @@ void TaskFsm::handle_playing(const FsmInput &in, FsmOutput &out)
     }
 
     const double ball_dist = std::hypot(in.ball_rel_x, in.ball_rel_y);
+    const bool has_valid_rel_ball = (ball_dist > 1e-4); // 0 거르기
 
     switch (play_sub_state_)
     {
     case PlaySubState::SEARCH:
-        if (detect_count_ >= params_.min_detect_frames)
+        if (has_valid_rel_ball && detect_count_ >= params_.min_detect_frames)
         {
             if (ball_dist <= params_.d_enter)
             {
@@ -252,7 +253,7 @@ void TaskFsm::handle_playing(const FsmInput &in, FsmOutput &out)
             change_play_sub_state(PlaySubState::SEARCH, in, out);
             return;
         }
-        if (valid_ball && ball_dist <= params_.d_enter)
+        if (valid_ball && has_valid_rel_ball && ball_dist <= params_.d_enter)
         {
             change_play_sub_state(PlaySubState::ALIGN, in, out);
             return;
@@ -277,7 +278,7 @@ void TaskFsm::handle_playing(const FsmInput &in, FsmOutput &out)
             change_play_sub_state(PlaySubState::SEARCH, in, out);
             return;
         }
-        if (valid_ball && ball_dist > params_.d_exit)
+        if (valid_ball && has_valid_rel_ball && ball_dist > params_.d_exit)
         {
             change_play_sub_state(PlaySubState::APPROACH, in, out);
             return;
@@ -286,7 +287,7 @@ void TaskFsm::handle_playing(const FsmInput &in, FsmOutput &out)
         out.send_nav = true;
         out.nav.enable = false;
 
-        if (!valid_ball)
+        if (!valid_ball || !has_valid_rel_ball)
         {
             out.send_walk = true;
             out.vx = 0.0;
