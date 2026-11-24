@@ -53,7 +53,7 @@ class TaskPlanner : public rclcpp::Node
 
     rclcpp::Publisher<VSComm>::SharedPtr VisionCommand_pub;
     std::string visionCommand_topic_name;
-    void publish_vision_command(const VSComm &comm);
+    void publish_vision_command(int comm);
 
     // rclcpp::Subscription<VSFeedback>::SharedPtr VisionFeedback_sub;
     // std::string visionFeedback_topic_name;

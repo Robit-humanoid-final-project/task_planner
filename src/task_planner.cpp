@@ -93,8 +93,11 @@ void TaskPlanner::publish_kick(const KickFoot &foot)
     msg.data = (foot == KickFoot::LEFT) ? "left" : "right";
     IK_Kick_pub->publish(msg);
 }
-void TaskPlanner::publish_vision_command(const VSComm &comm)
+void TaskPlanner::publish_vision_command(int comm)
 {
+    VSComm msg;
+    msg.vision_mode = comm;
+    VisionCommand_pub->publish(msg);
 }
 
 bool TaskPlanner::is_vision_fresh() const
@@ -142,6 +145,10 @@ void TaskPlanner::control_loop()
     if (out.send_walk) // 직접 전달 시
     {
         publish_walk(out.vx, out.vy, out.vyaw);
+    }
+    if (out.send_vision_cmd)
+    {
+        publish_vision_command(out.vision_mode);
     }
     if (out.send_kick) // kick foot
     {
