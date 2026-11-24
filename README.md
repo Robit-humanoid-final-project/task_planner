@@ -17,3 +17,10 @@ cd ~/colcon_ws
 source /opt/ros/jazzy/setup.bash
 ros2 launch task_planner task_planner.launch.py
 ```
+
+```
+# gamecontroller
+cd ~/colcon_ws
+source /opt/ros/jazzy/setup.bash
+ros2 launch gamecontroller gamecontroller.launch.py
+```
