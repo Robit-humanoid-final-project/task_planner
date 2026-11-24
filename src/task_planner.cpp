@@ -145,7 +145,7 @@ void TaskPlanner::control_loop()
     {
         input_.motion_done = false;
     }
-    if (out.send_nav && out.send_walk)
+    if (out.send_nav && out.nav.enable && out.send_walk)
     {
         RCLCPP_ERROR(this->get_logger(), "nav.active와 send_walk가 동시에 활성화됨");
         return;
