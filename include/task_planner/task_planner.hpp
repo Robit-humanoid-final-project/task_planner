@@ -10,6 +10,7 @@
 #include "humanoid_interfaces/msg/nav_feedback.hpp"
 #include "humanoid_interfaces/msg/vs_command.hpp"
 // #include "humanoid_interfaces/msg/vs_feedback.hpp"
+#include "humanoid_interfaces/msg/vision2_local_observ.hpp"
 #include "humanoid_interfaces/msg/world_model.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -31,6 +32,7 @@ class TaskPlanner : public rclcpp::Node
     using navFeedback = humanoid_interfaces::msg::NavFeedback;
     using VSComm = humanoid_interfaces::msg::VSCommand;
     // using VSFeedback = humanoid_interfaces::msg::VSFeedback;
+    using VSObserv = humanoid_interfaces::msg::Vision2LocalObserv;
     using worldModel = humanoid_interfaces::msg::WorldModel;
     // TODO: 추가할 거
     // ta -> walk(kick, pass 등)
@@ -58,6 +60,10 @@ class TaskPlanner : public rclcpp::Node
     // rclcpp::Subscription<VSFeedback>::SharedPtr VisionFeedback_sub;
     // std::string visionFeedback_topic_name;
     // void vision_feedback_callback(const VSFeedback::SharedPtr msg);
+
+    rclcpp::Subscription<VSObserv>::SharedPtr VisionObserv_sub;
+    std::string vision_observ_topic_name;
+    void vision_observ_callback(const VSObserv::SharedPtr msg);
 
     rclcpp::Subscription<worldModel>::SharedPtr WorldModel_sub;
     std::string worldModel_topic_name;

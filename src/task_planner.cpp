@@ -13,6 +13,7 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     navFeedback_topic_name = declare_parameter<std::string>("navFeedback_topic_name", "nav_feedback");
     visionCommand_topic_name = declare_parameter<std::string>("visionCommand_topic_name", "vision_command");
     // visionFeedback_topic_name = declare_parameter<std::string>("visionFeedback_topic_name", "vision_feedback");
+    vision_observ_topic_name = declare_parameter<std::string>("vision_observ_topic_name", "/vision_packages");
     worldModel_topic_name = declare_parameter<std::string>("worldModel_topic_name", "world_model");
     ik_kick_topic_name = declare_parameter<std::string>("ik_kick_topic_name", "kick_flag");
     ik_kick_end_topic_name = declare_parameter<std::string>("ik_kick_end_topic_name", "kick_flag_end");
@@ -29,6 +30,8 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     // VisionFeedback_sub = this->create_subscription<VSFeedback>(
     //     visionFeedback_topic_name, 10, std::bind(&TaskPlanner::vision_feedback_callback, this,
     //     std::placeholders::_1));
+    VisionObserv_sub = this->create_subscription<VSObserv>(
+        vision_observ_topic_name, 10, std::bind(&TaskPlanner::vision_observ_callback, this, std::placeholders::_1));
     WorldModel_sub = this->create_subscription<worldModel>(
         worldModel_topic_name, 10, std::bind(&TaskPlanner::world_model_callback, this, std::placeholders::_1));
     IK_Kick_pub = this->create_publisher<std_msgs::msg::String>(ik_kick_topic_name, 10);
@@ -47,23 +50,33 @@ TaskPlanner::~TaskPlanner()
 void TaskPlanner::control_data_callback(const controlData::SharedPtr msg)
 {
     state = msg->state;
-    // RCLCPP_INFO(this->get_logger(), "gamecontroller state: %d", state);
+    input_.gc_state = msg->state;
 }
 void TaskPlanner::navigation_feedback_callback(const navFeedback::SharedPtr msg)
 {
-    double temp = msg->eta_seconds;
+    input_.nav_arrived = msg->status == 2 ? 1 : 0;
 }
 // void TaskPlanner::vision_feedback_callback(const VSFeedback::SharedPtr msg)
 // {
 //     int temp = msg->is_aligned;
 // }
+void TaskPlanner::vision_observ_callback(const VSObserv::SharedPtr msg)
+{
+    input_.ball_rel_x = msg->ball[0]; // x
+    input_.ball_rel_y = msg->ball[1]; // y
+}
 void TaskPlanner::world_model_callback(const worldModel::SharedPtr msg)
 {
-    int temp = msg->ball_detected;
+    last_vision_time_ = this->now();
+
+    input_.ball_detected = msg->ball_detected;
+    input_.ball_global_x = msg->ball_pose.x;
+    input_.ball_global_y = msg->ball_pose.y;
 }
 void TaskPlanner::ik_kick_end_callback(const std_msgs::msg::Bool msg)
 {
-    std_msgs::msg::Bool temp = msg;
+    if (msg.data)
+        input_.motion_done = true;
 }
 void TaskPlanner::publish_nav_command(const NavCmdOut &nav)
 {
@@ -81,10 +94,9 @@ void TaskPlanner::publish_nav_command(const NavCmdOut &nav)
 void TaskPlanner::publish_walk(double vx, double vy, double vyaw)
 {
     M2Ik msg;
-    // TODO: Master2IkMsg 보행 속도 필드 매핑
-    (void)vx;
-    (void)vy;
-    (void)vyaw;
+    msg.x_length = vx;
+    msg.y_length = vy;
+    msg.yaw = vyaw;
     Master2Ik_pub->publish(msg);
 }
 void TaskPlanner::publish_kick(const KickFoot &foot)

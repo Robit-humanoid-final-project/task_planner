@@ -7,6 +7,7 @@
     navFeedback_topic_name: "nav_feedback"
     visionCommand_topic_name: "vision_command"
     visionFeedback_topic_name: "vision_feedback"
+    vision_observ_topic_name: "/vision_packages"
     worldModel_topic_name: "world_model"
     ik_kick_topic_name: "kick_flag"
     ik_kick_end_topic_name: "kick_flag_end"
