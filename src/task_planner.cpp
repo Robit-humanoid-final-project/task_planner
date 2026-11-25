@@ -18,6 +18,10 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     ik_kick_topic_name = declare_parameter<std::string>("ik_kick_topic_name", "kick_flag");
     ik_kick_end_topic_name = declare_parameter<std::string>("ik_kick_end_topic_name", "kick_flag_end");
 
+    set_yaw_zero_topic_name = declare_parameter<std::string>("set_yaw_zero_topic_name", "/imu/set_yaw_0");
+    set_yaw_90_topic_name = declare_parameter<std::string>("set_yaw_90_topic_name", "/imu/set_yaw_90");
+    set_yaw_m90_topic_name = declare_parameter<std::string>("set_yaw_m90_topic_name", "/imu/set_yaw_m90");
+
     // topic pub, sub, QoS 추후 변경
     ControlData_sub = this->create_subscription<controlData>(
         gamecontroller2master_topic_name, 10,
@@ -37,6 +41,10 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     IK_Kick_pub = this->create_publisher<std_msgs::msg::String>(ik_kick_topic_name, 10);
     IK_Kick_end_sub = this->create_subscription<std_msgs::msg::Bool>(
         ik_kick_end_topic_name, 10, std::bind(&TaskPlanner::ik_kick_end_callback, this, std::placeholders::_1));
+
+    set_yaw_zero_pub = this->create_publisher<std_msgs::msg::Empty>(set_yaw_zero_topic_name, 10);
+    set_yaw_90_pub = this->create_publisher<std_msgs::msg::Empty>(set_yaw_90_topic_name, 10);
+    set_yaw_m90_pub = this->create_publisher<std_msgs::msg::Empty>(set_yaw_m90_topic_name, 10);
 
     control_timer_ =
         this->create_wall_timer(std::chrono::milliseconds(1000 / 20), std::bind(&TaskPlanner::control_loop, this));
@@ -111,6 +119,16 @@ void TaskPlanner::publish_vision_command(int comm)
     msg.vision_mode = comm;
     VisionCommand_pub->publish(msg);
 }
+void TaskPlanner::publish_set_yaw(int degree)
+{
+    std_msgs::msg::Empty msg;
+    if (degree == 0)
+        set_yaw_zero_pub->publish(msg);
+    else if (degree == 90)
+        set_yaw_90_pub->publish(msg);
+    else if (degree == -90)
+        set_yaw_m90_pub->publish(msg);
+}
 
 bool TaskPlanner::is_vision_fresh() const
 {
@@ -139,6 +157,10 @@ void TaskPlanner::control_loop()
     if (out.entered_penalty_initial)
     {
         RCLCPP_WARN(this->get_logger(), "페널티 복귀 (pass_count 리셋)");
+    }
+    if (out.send_set_yaw)
+    { // TODO: 로봇별 set yaw 달라지도록 추후 수정해야 함 UDP되면 하기
+        publish_set_yaw(-90);
     }
 
     if (out.reset_motion_done) // kick end

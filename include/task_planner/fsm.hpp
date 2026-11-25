@@ -86,6 +86,8 @@ struct FsmOutput
     bool send_vision_cmd = false;
     int vision_mode = 0; // 1: vision search, 2: vision align
 
+    bool send_set_yaw = false;
+
     // 상태 전이 이벤트 플래그 (로깅/디버깅용)
     bool warn_ready_ignored = false;
     bool entered_first_initial = false;

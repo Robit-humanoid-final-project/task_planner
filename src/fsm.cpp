@@ -102,6 +102,7 @@ void TaskFsm::change_main_state(MainState next_main, FsmOutput &out)
 
     case MainState::READY:
         has_game_started_ = true;
+        out.send_set_yaw = true;
         out.send_nav = true;
         out.nav = {true,
                    params_.ready_target_x,

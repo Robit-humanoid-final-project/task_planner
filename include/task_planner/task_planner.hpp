@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 
 #include "task_planner/fsm.hpp"
 
@@ -12,8 +12,9 @@
 // #include "humanoid_interfaces/msg/vs_feedback.hpp"
 #include "humanoid_interfaces/msg/vision2_local_observ.hpp"
 #include "humanoid_interfaces/msg/world_model.hpp"
-#include "std_msgs/msg/bool.hpp"
-#include "std_msgs/msg/string.hpp"
+#include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/string.hpp>
 
 namespace task_planner
 {
@@ -76,6 +77,14 @@ class TaskPlanner : public rclcpp::Node
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr IK_Kick_end_sub;
     std::string ik_kick_end_topic_name;
     void ik_kick_end_callback(const std_msgs::msg::Bool msg);
+
+    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr set_yaw_zero_pub;
+    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr set_yaw_90_pub;
+    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr set_yaw_m90_pub;
+    std::string set_yaw_zero_topic_name;
+    std::string set_yaw_90_topic_name;  // 반시계
+    std::string set_yaw_m90_topic_name; // 시계
+    void publish_set_yaw(int degree);
 
     // ---
     rclcpp::TimerBase::SharedPtr control_timer_;
