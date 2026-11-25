@@ -161,6 +161,14 @@ void TaskPlanner::control_loop()
     if (out.send_set_yaw)
     { // TODO: 로봇별 set yaw 달라지도록 추후 수정해야 함 UDP되면 하기
         publish_set_yaw(-90);
+        yaw_settle_deadline_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+        yaw_settle_pending_ = true;
+    }
+    const bool yaw_settle_delay_active =
+        yaw_settle_pending_ && std::chrono::steady_clock::now() < yaw_settle_deadline_;
+    if (yaw_settle_pending_ && !yaw_settle_delay_active)
+    {
+        yaw_settle_pending_ = false;
     }
 
     if (out.reset_motion_done) // kick end
@@ -174,7 +182,10 @@ void TaskPlanner::control_loop()
     }
     if (out.send_nav) // send_nav가 false일 경우 nav에서 보행 topic 발행 X
     {
-        publish_nav_command(out.nav);
+        if (!out.nav.enable || !yaw_settle_delay_active)
+        {
+            publish_nav_command(out.nav);
+        }
     }
     if (out.send_walk) // 직접 전달 시
     {

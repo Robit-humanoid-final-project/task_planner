@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include <rclcpp/rclcpp.hpp>
 
 #include "task_planner/fsm.hpp"
@@ -88,6 +90,8 @@ class TaskPlanner : public rclcpp::Node
 
     // ---
     rclcpp::TimerBase::SharedPtr control_timer_;
+    std::chrono::steady_clock::time_point yaw_settle_deadline_{};
+    bool yaw_settle_pending_{false};
     bool is_vision_fresh() const;
     void control_loop();
 
