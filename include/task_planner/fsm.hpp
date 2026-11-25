@@ -50,6 +50,9 @@ struct FsmInput
     double teammate_yaw_err = 0.0;
     double goal_yaw_err = 0.0;
 
+    float robot_global_x = 0.0f;
+    float robot_global_y = 0.0f;
+    float robot_global_theta = 0.0f;
     float ball_global_x = 0.0f;
     float ball_global_y = 0.0f;
     float teammate_global_theta = 0.0f;

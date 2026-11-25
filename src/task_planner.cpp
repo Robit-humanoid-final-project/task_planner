@@ -1,5 +1,7 @@
 #include "task_planner/task_planner.hpp"
 
+#include <cmath>
+
 namespace task_planner
 {
 
@@ -21,6 +23,10 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     set_yaw_zero_topic_name = declare_parameter<std::string>("set_yaw_zero_topic_name", "/imu/set_yaw_0");
     set_yaw_90_topic_name = declare_parameter<std::string>("set_yaw_90_topic_name", "/imu/set_yaw_90");
     set_yaw_m90_topic_name = declare_parameter<std::string>("set_yaw_m90_topic_name", "/imu/set_yaw_m90");
+
+    teamDataTx_topic_name = declare_parameter<std::string>("teamDataTx_topic_name", "/TeamData");
+    teamDataRx_topic_name = declare_parameter<std::string>("teamDataRx_topic_name", "/Team2Data");
+    robot_id_ = declare_parameter<int>("robot_id", 1);
 
     // topic pub, sub, QoS 추후 변경
     ControlData_sub = this->create_subscription<controlData>(
@@ -45,6 +51,10 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     set_yaw_zero_pub = this->create_publisher<std_msgs::msg::Empty>(set_yaw_zero_topic_name, 10);
     set_yaw_90_pub = this->create_publisher<std_msgs::msg::Empty>(set_yaw_90_topic_name, 10);
     set_yaw_m90_pub = this->create_publisher<std_msgs::msg::Empty>(set_yaw_m90_topic_name, 10);
+
+    teamDataTx_pub = this->create_publisher<teamData>(teamDataTx_topic_name, 10);
+    teamDataRx_sub = this->create_subscription<teamData>(
+        teamDataRx_topic_name, 10, std::bind(&TaskPlanner::team_data_callback, this, std::placeholders::_1));
 
     control_timer_ =
         this->create_wall_timer(std::chrono::milliseconds(1000 / 20), std::bind(&TaskPlanner::control_loop, this));
@@ -77,14 +87,31 @@ void TaskPlanner::world_model_callback(const worldModel::SharedPtr msg)
 {
     last_vision_time_ = this->now();
 
+    has_world_model_ = true;
+    input_.robot_global_x = msg->robot_pose.x;
+    input_.robot_global_y = msg->robot_pose.y;
+    input_.robot_global_theta = msg->robot_pose.theta;
     input_.ball_detected = msg->ball_detected;
     input_.ball_global_x = msg->ball_pose.x;
     input_.ball_global_y = msg->ball_pose.y;
+    if (has_teammate_pose_)
+        update_teammate_yaw_error();
 }
 void TaskPlanner::ik_kick_end_callback(const std_msgs::msg::Bool msg)
 {
     if (msg.data)
         input_.motion_done = true;
+}
+void TaskPlanner::team_data_callback(const teamData &msg)
+{
+    input_.teammate_global_theta = msg.robot_theta;
+    has_teammate_pose_ = true;
+    update_teammate_yaw_error();
+}
+void TaskPlanner::update_teammate_yaw_error()
+{
+    input_.teammate_yaw_err =
+        std::remainder(input_.teammate_global_theta - input_.robot_global_theta, 2.0 * std::acos(-1.0));
 }
 void TaskPlanner::publish_nav_command(const NavCmdOut &nav)
 {
@@ -129,6 +156,10 @@ void TaskPlanner::publish_set_yaw(int degree)
     else if (degree == -90)
         set_yaw_m90_pub->publish(msg);
 }
+void TaskPlanner::publish_team_data_tx(const teamData &team_data)
+{
+    teamDataTx_pub->publish(team_data);
+}
 
 bool TaskPlanner::is_vision_fresh() const
 {
@@ -145,6 +176,25 @@ void TaskPlanner::control_loop()
     input_.is_vision_fresh = is_vision_fresh();
 
     const FsmOutput out = fsm_.update(input_);
+    if (has_world_model_)
+    {
+        teamData team_data;
+        team_data.robot_id = static_cast<uint8_t>(robot_id_);
+        team_data.main_state = static_cast<uint8_t>(fsm_.main_state());
+        team_data.sub_state = static_cast<uint8_t>(fsm_.play_sub_state());
+        team_data.pass_count = static_cast<uint8_t>(fsm_.pass_count());
+        team_data.robot_x = input_.robot_global_x;
+        team_data.robot_y = input_.robot_global_y;
+        team_data.robot_theta = input_.robot_global_theta;
+        team_data.ball_detected = input_.ball_detected;
+        team_data.ball_x = input_.ball_global_x;
+        team_data.ball_y = input_.ball_global_y;
+        team_data.ball_dist = input_.ball_detected
+                                  ? std::hypot(input_.ball_global_x - input_.robot_global_x,
+                                               input_.ball_global_y - input_.robot_global_y)
+                                  : 0.0;
+        publish_team_data_tx(team_data);
+    }
 
     if (out.warn_ready_ignored)
     {
@@ -164,8 +214,7 @@ void TaskPlanner::control_loop()
         yaw_settle_deadline_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
         yaw_settle_pending_ = true;
     }
-    const bool yaw_settle_delay_active =
-        yaw_settle_pending_ && std::chrono::steady_clock::now() < yaw_settle_deadline_;
+    const bool yaw_settle_delay_active = yaw_settle_pending_ && std::chrono::steady_clock::now() < yaw_settle_deadline_;
     if (yaw_settle_pending_ && !yaw_settle_delay_active)
     {
         yaw_settle_pending_ = false;

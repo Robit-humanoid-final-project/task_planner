@@ -12,6 +12,7 @@
 #include "humanoid_interfaces/msg/nav_feedback.hpp"
 #include "humanoid_interfaces/msg/vs_command.hpp"
 // #include "humanoid_interfaces/msg/vs_feedback.hpp"
+#include "humanoid_interfaces/msg/team_data.hpp"
 #include "humanoid_interfaces/msg/vision2_local_observ.hpp"
 #include "humanoid_interfaces/msg/world_model.hpp"
 #include <std_msgs/msg/bool.hpp>
@@ -37,6 +38,7 @@ class TaskPlanner : public rclcpp::Node
     // using VSFeedback = humanoid_interfaces::msg::VSFeedback;
     using VSObserv = humanoid_interfaces::msg::Vision2LocalObserv;
     using worldModel = humanoid_interfaces::msg::WorldModel;
+    using teamData = humanoid_interfaces::msg::TeamData;
     // TODO: 추가할 거
     // ta -> walk(kick, pass 등)
     rclcpp::Subscription<controlData>::SharedPtr ControlData_sub;
@@ -51,7 +53,6 @@ class TaskPlanner : public rclcpp::Node
     rclcpp::Publisher<navComm>::SharedPtr NavCommand_pub;
     std::string navCommand_topic_name;
     void publish_nav_command(const NavCmdOut &nav);
-
     rclcpp::Subscription<navFeedback>::SharedPtr NavFeedback_sub;
     std::string navFeedback_topic_name;
     void navigation_feedback_callback(const navFeedback::SharedPtr msg);
@@ -59,7 +60,6 @@ class TaskPlanner : public rclcpp::Node
     rclcpp::Publisher<VSComm>::SharedPtr VisionCommand_pub;
     std::string visionCommand_topic_name;
     void publish_vision_command(int comm);
-
     // rclcpp::Subscription<VSFeedback>::SharedPtr VisionFeedback_sub;
     // std::string visionFeedback_topic_name;
     // void vision_feedback_callback(const VSFeedback::SharedPtr msg);
@@ -75,7 +75,6 @@ class TaskPlanner : public rclcpp::Node
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr IK_Kick_pub;
     std::string ik_kick_topic_name;
     void publish_kick(const KickFoot &foot);
-
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr IK_Kick_end_sub;
     std::string ik_kick_end_topic_name;
     void ik_kick_end_callback(const std_msgs::msg::Bool msg);
@@ -87,6 +86,17 @@ class TaskPlanner : public rclcpp::Node
     std::string set_yaw_90_topic_name;  // 반시계
     std::string set_yaw_m90_topic_name; // 시계
     void publish_set_yaw(int degree);
+
+    rclcpp::Publisher<teamData>::SharedPtr teamDataTx_pub;
+    std::string teamDataTx_topic_name;
+    int robot_id_{1};
+    void publish_team_data_tx(const teamData &team_data);
+    rclcpp::Subscription<teamData>::SharedPtr teamDataRx_sub;
+    std::string teamDataRx_topic_name;
+    void team_data_callback(const teamData &msg);
+    void update_teammate_yaw_error();
+    bool has_world_model_{false};
+    bool has_teammate_pose_{false};
 
     // ---
     rclcpp::TimerBase::SharedPtr control_timer_;

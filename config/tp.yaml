@@ -2,7 +2,6 @@
   ros__parameters:
     gamecontroller2master_topic_name: "gamecontroldata"
     master2ik_topic_name: "master2ik"
-    # temp
     navCommand_topic_name: "nav_command"
     navFeedback_topic_name: "nav_feedback"
     visionCommand_topic_name: "vision_command"
@@ -15,3 +14,7 @@
     set_yaw_zero_topic_name: "/imu/set_yaw_0"
     set_yaw_90_topic_name: "/imu/set_yaw_90"
     set_yaw_m90_topic_name: "/imu/set_yaw_m90"
+
+    teamDataTx_topic_name: "/TeamData"
+    teamDataRx_topic_name: "/Team2Data"
+    robot_id: 1
