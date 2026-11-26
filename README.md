@@ -14,6 +14,7 @@ source install/setup.bash
 ```
 # task_planner
 cd ~/colcon_ws
+colcon build --packages-select task_planner
 source /opt/ros/jazzy/setup.bash
 ros2 launch task_planner task_planner.launch.py
 ```
@@ -21,6 +22,7 @@ ros2 launch task_planner task_planner.launch.py
 ```
 # gamecontroller
 cd ~/colcon_ws
+colcon build --packages-select gamecontroller
 source /opt/ros/jazzy/setup.bash
 ros2 launch gamecontroller gamecontroller.launch.py
 ```
