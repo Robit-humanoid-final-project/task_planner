@@ -60,9 +60,9 @@ class VisionAlignment
     double kp_y_{0.8};
     double kp_yaw_{1.0};
 
-    double max_vx_{0.15};
-    double max_vy_{0.12};
-    double max_vyaw_{0.35};
+    double max_vx_{2.0};
+    double max_vy_{1.0};
+    double max_vyaw_{1.0};
 };
 
 } // namespace task_planner
