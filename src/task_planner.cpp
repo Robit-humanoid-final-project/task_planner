@@ -189,10 +189,9 @@ void TaskPlanner::control_loop()
         team_data.ball_detected = input_.ball_detected;
         team_data.ball_x = input_.ball_global_x;
         team_data.ball_y = input_.ball_global_y;
-        team_data.ball_dist = input_.ball_detected
-                                  ? std::hypot(input_.ball_global_x - input_.robot_global_x,
-                                               input_.ball_global_y - input_.robot_global_y)
-                                  : 0.0;
+        team_data.ball_dist = input_.ball_detected ? std::hypot(input_.ball_global_x - input_.robot_global_x,
+                                                                input_.ball_global_y - input_.robot_global_y)
+                                                   : 0.0;
         publish_team_data_tx(team_data);
     }
 
@@ -209,8 +208,17 @@ void TaskPlanner::control_loop()
         RCLCPP_WARN(this->get_logger(), "페널티 복귀 (pass_count 리셋)");
     }
     if (out.send_set_yaw)
-    { // TODO: 로봇별 set yaw 달라지도록 추후 수정해야 함 UDP되면 하기
-        publish_set_yaw(-90);
+    {
+        switch (robot_id_)
+        {
+        case 1: // 상단
+            publish_set_yaw(90);
+            break;
+
+        case 2: // 하단 (id: 2)
+            publish_set_yaw(-90);
+            break;
+        }
         yaw_settle_deadline_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
         yaw_settle_pending_ = true;
     }
