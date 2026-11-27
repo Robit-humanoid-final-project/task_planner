@@ -19,6 +19,7 @@ include_directories(include)
 add_executable(task_planner
   src/task_planner.cpp
   src/fsm.cpp
+  src/kick_coordinator.cpp
   src/vision_alignment.cpp
 )
 ament_target_dependencies(task_planner rclcpp std_msgs humanoid_interfaces gamecontroller)

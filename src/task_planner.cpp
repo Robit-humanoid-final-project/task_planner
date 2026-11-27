@@ -28,6 +28,20 @@ TaskPlanner::TaskPlanner() : Node("task_planner")
     teamDataRx_topic_name = declare_parameter<std::string>("teamDataRx_topic_name", "/Team2Data");
     robot_id_ = declare_parameter<int>("robot_id", 1);
 
+    FsmParams fsm_params;
+    fsm_params.pass_kick_distance = declare_parameter<double>("pass_kick_distance", 1.5);
+    fsm_params.pass_receive_timeout = declare_parameter<double>("pass_receive_timeout", 3.0);
+    fsm_params.opponent_goal_x = declare_parameter<double>("opponent_goal_x", 4.5);
+    fsm_params.opponent_goal_y = declare_parameter<double>("opponent_goal_y", 0.0);
+    fsm_params.field_length = declare_parameter<double>("field_length", 9.0);
+    fsm_params.field_width = declare_parameter<double>("field_width", 6.0);
+    fsm_params.pass_obstacle_clearance = declare_parameter<double>("pass_obstacle_clearance", 0.25);
+    fsm_params.pass_receiver_max_distance = declare_parameter<double>("pass_receiver_max_distance", 3.0);
+    fsm_params.pass_kicker_switch_hysteresis =
+        declare_parameter<double>("pass_kicker_switch_hysteresis", 0.4);
+    fsm_params.pass_approach_standoff = declare_parameter<double>("pass_approach_standoff", 0.30);
+    fsm_ = TaskFsm(fsm_params);
+
     // topic pub, sub, QoS 추후 변경
     ControlData_sub = this->create_subscription<controlData>(
         gamecontroller2master_topic_name, 10,
@@ -94,8 +108,12 @@ void TaskPlanner::world_model_callback(const worldModel::SharedPtr msg)
     input_.ball_detected = msg->ball_detected;
     input_.ball_global_x = msg->ball_pose.x;
     input_.ball_global_y = msg->ball_pose.y;
-    if (has_teammate_pose_)
-        update_teammate_yaw_error();
+    input_.obstacles.clear();
+    input_.obstacles.reserve(msg->obstacles.size());
+    for (const auto &obstacle : msg->obstacles)
+    {
+        input_.obstacles.push_back({obstacle.x, obstacle.y});
+    }
 }
 void TaskPlanner::ik_kick_end_callback(const std_msgs::msg::Bool msg)
 {
@@ -105,13 +123,17 @@ void TaskPlanner::ik_kick_end_callback(const std_msgs::msg::Bool msg)
 void TaskPlanner::team_data_callback(const teamData &msg)
 {
     input_.teammate_global_theta = msg.robot_theta;
+    input_.teammate_main_state = msg.main_state;
+    input_.teammate_sub_state = msg.sub_state;
+    input_.teammate_robot_id = msg.robot_id;
+    input_.teammate_pass_count = msg.pass_count;
+    input_.teammate_robot_global_x = msg.robot_x;
+    input_.teammate_robot_global_y = msg.robot_y;
+    input_.teammate_ball_detected = msg.ball_detected;
+    input_.teammate_ball_global_x = msg.ball_x;
+    input_.teammate_ball_global_y = msg.ball_y;
+    last_teammate_data_time_ = std::chrono::steady_clock::now();
     has_teammate_pose_ = true;
-    update_teammate_yaw_error();
-}
-void TaskPlanner::update_teammate_yaw_error()
-{
-    input_.teammate_yaw_err =
-        std::remainder(input_.teammate_global_theta - input_.robot_global_theta, 2.0 * std::acos(-1.0));
 }
 void TaskPlanner::publish_nav_command(const NavCmdOut &nav)
 {
@@ -174,6 +196,10 @@ bool TaskPlanner::is_vision_fresh() const
 void TaskPlanner::control_loop()
 {
     input_.is_vision_fresh = is_vision_fresh();
+    input_.robot_id = robot_id_;
+    const auto now = std::chrono::steady_clock::now();
+    input_.now_seconds = std::chrono::duration<double>(now.time_since_epoch()).count();
+    input_.teammate_data_fresh = has_teammate_pose_ && now - last_teammate_data_time_ <= std::chrono::seconds(1);
 
     const FsmOutput out = fsm_.update(input_);
     if (has_world_model_)
@@ -186,12 +212,12 @@ void TaskPlanner::control_loop()
         team_data.robot_x = input_.robot_global_x;
         team_data.robot_y = input_.robot_global_y;
         team_data.robot_theta = input_.robot_global_theta;
-        team_data.ball_detected = input_.ball_detected;
+        team_data.ball_detected = input_.ball_detected && input_.is_vision_fresh;
         team_data.ball_x = input_.ball_global_x;
         team_data.ball_y = input_.ball_global_y;
-        team_data.ball_dist = input_.ball_detected ? std::hypot(input_.ball_global_x - input_.robot_global_x,
-                                                                input_.ball_global_y - input_.robot_global_y)
-                                                   : 0.0;
+        team_data.ball_dist = team_data.ball_detected ? std::hypot(input_.ball_global_x - input_.robot_global_x,
+                                                                   input_.ball_global_y - input_.robot_global_y)
+                                                      : 0.0;
         publish_team_data_tx(team_data);
     }
 

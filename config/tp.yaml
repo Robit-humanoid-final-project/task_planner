@@ -17,4 +17,15 @@
 
     teamDataTx_topic_name: "/TeamData"
     teamDataRx_topic_name: "/Team2Data"
+
     robot_id: 1
+    pass_kick_distance: 1.5 # 실측 필요
+    pass_receive_timeout: 3.0
+    opponent_goal_x: 4.5
+    opponent_goal_y: 0.0
+    field_length: 9.0
+    field_width: 6.0
+    pass_obstacle_clearance: 0.25
+    pass_receiver_max_distance: 3.0
+    pass_kicker_switch_hysteresis: 0.4
+    pass_approach_standoff: 0.30

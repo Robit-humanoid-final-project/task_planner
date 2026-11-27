@@ -94,9 +94,10 @@ class TaskPlanner : public rclcpp::Node
     rclcpp::Subscription<teamData>::SharedPtr teamDataRx_sub;
     std::string teamDataRx_topic_name;
     void team_data_callback(const teamData &msg);
-    void update_teammate_yaw_error();
     bool has_world_model_{false};
     bool has_teammate_pose_{false};
+
+    std::chrono::steady_clock::time_point last_teammate_data_time_{};
 
     // ---
     rclcpp::TimerBase::SharedPtr control_timer_;
